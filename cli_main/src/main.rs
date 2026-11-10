@@ -36,7 +36,20 @@ use std::path::PathBuf;
 // (ex.: `fs::read_to_string`, `fs::write`, `fs::create_dir_all`).
 use std::fs;
 
-fn main() -> Result<()> {
-    println!("Imports ok!");
-    Ok(())
+#[derive(Parser)]
+// `derive(Parser)` faz o clap gerar sozinho o código que lê os argumentos.
+#[command(name = "tory", version, about = "Minha cli em rust")]
+struct Cli {
+    #[command(Subcommand)]
+    comando: comandos, 
+}
+
+
+#[derive(Subcommand)]
+enum comandos {
+    
+    add {
+
+        texto: String,
+    }
 }
