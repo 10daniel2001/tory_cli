@@ -27,6 +27,7 @@ Este é um projeto pessoal, feito com foco em aprendizado e em construir algo ú
 
 | Funcionalidade | Status |
 |---|---|
+| Shell interativo que executa comandos e mostra o diretório atual | Implementado |
 | Prompt colorido com hora e data | Planejado |
 | `Ctrl + C` copia quando há texto selecionado | Planejado |
 | `Ctrl + V` cola | Planejado |
@@ -61,6 +62,10 @@ A fonte de um terminal é definida pelo emulador de terminal (GNOME Terminal, Ki
 
 Bibliotecas específicas (interface de terminal, leitura de linha, clipboard) serão definidas ao longo do desenvolvimento.
 
+## Usando o shell
+
+O shell executa comandos do sistema por meio de `/bin/sh`. Os comandos internos `cd` e `exit` permitem navegar entre pastas e encerrar o Tory CLI. Para mudar para uma pasta com espaços no nome, use aspas, por exemplo: `cd "Minha pasta"`.
+
 ## Como instalar
 
 > O projeto ainda está no início e não há versão estável.
@@ -72,6 +77,9 @@ Para rodar a versão de desenvolvimento, você precisa do [Rust](https://rustup.
 git clone git@github.com:10daniel2001/tory_cli.git
 cd tory_cli
 
+# Entrar na pasta do projeto Rust
+cd cli_main
+
 # Compilar e executar
 cargo run
 ```
@@ -80,15 +88,17 @@ cargo run
 
 ```
 tory_cli/
-├── src/            # código-fonte em Rust
-├── Cargo.toml      # configuração do projeto e dependências
+├── cli_main/
+│   ├── src/        # código-fonte em Rust
+│   ├── Cargo.toml  # configuração do projeto e dependências
+│   └── Cargo.lock
 ├── README.md       # este arquivo
-└── LICENSE         # licença do projeto
+└── .gitignore
 ```
 
 ## Roadmap
 
-- [ ] **v0.1**: shell básico que executa comandos e mostra o prompt
+- [x] **v0.1**: shell básico que executa comandos e mostra o prompt
 - [ ] **v0.2**: prompt com cores, hora e data
 - [ ] **v0.3**: atalhos de copiar e colar
 - [ ] **v0.4**: histórico e autocompletar

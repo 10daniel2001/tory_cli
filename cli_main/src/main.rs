@@ -1,55 +1,153 @@
-// Permite ao compilador não reclamar de imports ainda não usados.
-// Remova esta linha quando o código estiver usando tudo.
-#![allow(unused_imports)]
+use anyhow::{Context, Result, bail};
+use std::io::{self, Write};
+use std::process::Command;
 
-// ---------- clap: leitura dos argumentos do terminal ----------
+fn main() -> Result<()> {
+    let stdin = io::stdin();
+    let mut line = String::new();
 
-// `Parser` é uma trait do clap. Com `#[derive(Parser)]` em uma struct,
-// ela passa a saber ler o que o usuário digitou (ex.: `tory --help`).
-use clap::Parser;
+    loop {
+        let current_dir = std::env::current_dir().context("não foi possível ler a pasta atual")?;
+        print!("tory:{}$ ", current_dir.display());
+        io::stdout()
+            .flush()
+            .context("não foi possível exibir o prompt")?;
 
-// `Subcommand` serve para criar subcomandos em um enum
-// (ex.: `tory add`, `tory list`, `tory remove`).
-use clap::Subcommand;
+        line.clear();
+        if stdin
+            .read_line(&mut line)
+            .context("não foi possível ler o comando")?
+            == 0
+        {
+            break;
+        }
 
-// ---------- anyhow: tratamento de erros simples ----------
+        match execute_line(&line) {
+            Ok(true) => {}
+            Ok(false) => break,
+            Err(error) => eprintln!("tory: {error:#}"),
+        }
+    }
 
-// `Result` do anyhow é um atalho para `Result<T, anyhow::Error>`:
-// qualquer tipo de erro cabe nele, então o operador `?` funciona em tudo.
-// `Context` adiciona o método `.context("mensagem")`, que explica
-// o que estava sendo feito quando o erro aconteceu.
-use anyhow::{Context, Result};
-
-// ---------- serde: converter dados de/para texto (JSON) ----------
-
-// `Serialize` transforma uma struct em texto (para salvar em arquivo).
-// `Deserialize` faz o caminho contrário (ler o arquivo e montar a struct).
-use serde::{Deserialize, Serialize};
-
-// ---------- biblioteca padrão do Rust (std), não precisa de cargo add ----------
-
-// `PathBuf` guarda um caminho de arquivo ou pasta que pode ser montado
-// e modificado (ex.: juntar a pasta de config com o nome do arquivo).
-use std::path::PathBuf;
-
-// `fs` (file system) tem as funções para ler, criar e escrever arquivos
-// (ex.: `fs::read_to_string`, `fs::write`, `fs::create_dir_all`).
-use std::fs;
-
-#[derive(Parser)]
-// `derive(Parser)` faz o clap gerar sozinho o código que lê os argumentos.
-#[command(name = "tory", version, about = "Minha cli em rust")]
-struct Cli {
-    #[command(Subcommand)]
-    comando: comandos, 
+    Ok(())
 }
 
+fn execute_line(line: &str) -> Result<bool> {
+    let command_line = line.trim();
+    if command_line.is_empty() {
+        return Ok(true);
+    }
 
-#[derive(Subcommand)]
-enum comandos {
-    
-    add {
+    let command_end = command_line
+        .find(char::is_whitespace)
+        .unwrap_or(command_line.len());
+    let command = &command_line[..command_end];
+    let arguments = command_line[command_end..].trim();
 
-        texto: String,
+    match command {
+        "exit" if arguments.is_empty() => return Ok(false),
+        "exit" => bail!("o comando 'exit' não aceita argumentos"),
+        "cd" => change_directory(arguments)?,
+        _ => {
+            Command::new("/bin/sh")
+                .arg("-c")
+                .arg(command_line)
+                .status()
+                .context("não foi possível iniciar /bin/sh")?;
+        }
+    }
+
+    Ok(true)
+}
+
+fn change_directory(arguments: &str) -> Result<()> {
+    let path = match parse_single_argument(arguments)? {
+        Some(path) => expand_home(path),
+        None => std::path::PathBuf::from(
+            std::env::var_os("HOME").context("a variável HOME não está definida")?,
+        ),
+    };
+
+    std::env::set_current_dir(&path)
+        .with_context(|| format!("não foi possível acessar '{}'", path.display()))
+}
+
+fn parse_single_argument(input: &str) -> Result<Option<String>> {
+    let mut chars = input.chars().peekable();
+    while chars
+        .peek()
+        .is_some_and(|character| character.is_whitespace())
+    {
+        chars.next();
+    }
+    if chars.peek().is_none() {
+        return Ok(None);
+    }
+
+    let mut argument = String::new();
+    let mut quote = None;
+    let mut escaped = false;
+    let mut started = false;
+
+    while let Some(character) = chars.next() {
+        started = true;
+        if escaped {
+            argument.push(character);
+            escaped = false;
+            continue;
+        }
+
+        match quote {
+            Some('\'') if character == '\'' => quote = None,
+            Some('\'') => argument.push(character),
+            Some('"') if character == '"' => quote = None,
+            Some('"') if character == '\\' => escaped = true,
+            Some('"') => argument.push(character),
+            _ if character == '\\' => escaped = true,
+            _ if character == '\'' || character == '"' => quote = Some(character),
+            _ if character.is_whitespace() => break,
+            _ => argument.push(character),
+        }
+    }
+
+    if escaped || quote.is_some() {
+        bail!("aspas ou escape incompletos no caminho");
+    }
+    if chars.any(|character| !character.is_whitespace()) {
+        bail!("use um único caminho com o comando 'cd'");
+    }
+    if !started {
+        return Ok(None);
+    }
+
+    Ok(Some(argument))
+}
+
+fn expand_home(path: String) -> std::path::PathBuf {
+    if path == "~" || path.starts_with("~/") {
+        if let Some(home) = std::env::var_os("HOME") {
+            let suffix = path.strip_prefix('~').unwrap_or_default();
+            return std::path::PathBuf::from(home).join(suffix.trim_start_matches('/'));
+        }
+    }
+
+    path.into()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_single_argument;
+
+    #[test]
+    fn parses_quoted_paths_with_spaces() {
+        assert_eq!(
+            parse_single_argument("\"pasta com espaços\"").unwrap(),
+            Some("pasta com espaços".to_owned())
+        );
+    }
+
+    #[test]
+    fn rejects_multiple_paths() {
+        assert!(parse_single_argument("pasta outra").is_err());
     }
 }
