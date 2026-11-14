@@ -27,6 +27,7 @@ Este é um projeto pessoal, feito com foco em aprendizado e em construir algo ú
 
 | Funcionalidade | Status |
 |---|---|
+| Menu interativo minimalista para iniciar o shell, ver informações ou sair | Implementado |
 | Shell interativo que executa comandos e mostra o diretório atual | Implementado |
 | Prompt colorido com hora e data | Planejado |
 | `Ctrl + C` copia quando há texto selecionado | Planejado |
@@ -64,7 +65,9 @@ Bibliotecas específicas (interface de terminal, leitura de linha, clipboard) se
 
 ## Usando o shell
 
-O shell executa comandos do sistema por meio de `/bin/sh`. Os comandos internos `cd` e `exit` permitem navegar entre pastas e encerrar o Tory CLI. Para mudar para uma pasta com espaços no nome, use aspas, por exemplo: `cd "Minha pasta"`.
+Ao iniciar em um terminal, use as setas e Enter para escolher uma opção no menu: iniciar o shell, ver informações sobre o Tory CLI ou sair. O shell executa comandos do sistema por meio de `/bin/sh`. Os comandos internos `cd` e `exit` permitem navegar entre pastas e encerrar o Tory CLI. Para mudar para uma pasta com espaços no nome, use aspas, por exemplo: `cd "Minha pasta"`.
+
+Quando executado sem um terminal interativo, o Tory inicia o shell diretamente, permitindo o uso em scripts e pipelines.
 
 ## Como instalar
 

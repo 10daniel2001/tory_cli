@@ -1,8 +1,39 @@
 use anyhow::{Context, Result, bail};
-use std::io::{self, Write};
+use dialoguer::{Select, theme::ColorfulTheme};
+use std::io::{self, IsTerminal, Write};
 use std::process::Command;
 
 fn main() -> Result<()> {
+    if io::stdin().is_terminal() && io::stdout().is_terminal() {
+        return run_menu();
+    }
+
+    run_shell()
+}
+
+fn run_menu() -> Result<()> {
+    let options = ["Iniciar shell", "Sobre o Tory CLI", "Sair"];
+
+    loop {
+        let selection = Select::with_theme(&ColorfulTheme::default())
+            .with_prompt("Tory CLI")
+            .items(&options)
+            .default(0)
+            .interact()
+            .context("não foi possível exibir o menu")?;
+
+        match selection {
+            0 => return run_shell(),
+            1 => {
+                println!("\nTory CLI - um shell moderno para Linux.\n");
+            }
+            2 => return Ok(()),
+            _ => unreachable!("a seleção do menu deve corresponder a uma opção"),
+        }
+    }
+}
+
+fn run_shell() -> Result<()> {
     let stdin = io::stdin();
     let mut line = String::new();
 
